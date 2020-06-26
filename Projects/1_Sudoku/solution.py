@@ -5,11 +5,8 @@ from utils import *
 row_units = [cross(r, cols) for r in rows]
 column_units = [cross(rows, c) for c in cols]
 square_units = [cross(rs, cs) for rs in ('ABC','DEF','GHI') for cs in ('123','456','789')]
-unitlist = row_units + column_units + square_units
-
-# TODO: Update the unit list to add the new diagonal units
-unitlist = unitlist
-
+diagonal_units = [[rows[i]+cols[i] for i in range(9)], [rows[i]+cols[8 - i] for i in range(9)]]
+unitlist = row_units + column_units + square_units + diagonal_units
 
 # Must be called after all units (including diagonals) are added to the unitlist
 units = extract_units(unitlist, boxes)
@@ -53,7 +50,17 @@ def naked_twins(values):
     Pseudocode for this algorithm on github:
     https://github.com/udacity/artificial-intelligence/blob/master/Projects/1_Sudoku/pseudocode.md
     """
-    raise NotImplementedError
+    for boxA, valA in values.items():
+        if len(valA) != 2:
+            continue
+        for boxB in peers[boxA]:
+            if values[boxB] == valA:
+                for box in (set(peers[boxA]) & set(peers[boxB])):
+                    assign_value(values, box, values[box].replace(valA[0], ''))
+                    assign_value(values, box, values[box].replace(valA[1], ''))
+                    # values[box] = values[box].replace(valA[0], '')
+                    # values[box] = values[box].replace(valA[1], '')
+    return values
 
 
 def eliminate(values):
@@ -72,7 +79,12 @@ def eliminate(values):
     dict
         The values dictionary with the assigned values eliminated from peers
     """
-    raise NotImplementedError
+    for k, v in values.items():
+        if len(v) == 1:
+            for pk in peers[k]:
+                assign_value(values, pk, values[pk].replace(v[0], ''))
+                # values[pk] = values[pk].replace(v[0], '')
+    return values
 
 
 def only_choice(values):
@@ -90,12 +102,14 @@ def only_choice(values):
     -------
     dict
         The values dictionary with all single-valued boxes assigned
-
-    Notes
-    -----
-    You should be able to complete this function by copying your code from the classroom
     """
-    raise NotImplementedError
+    for unit in unitlist:
+        for d in '123456789':
+            places = [box for box in unit if d in values[box]]
+            if len(places) == 1:
+                assign_value(values, places[0], d)
+                # values[places[0]] = d
+    return values
 
 
 def reduce_puzzle(values):
@@ -112,7 +126,24 @@ def reduce_puzzle(values):
         The values dictionary after continued application of the constraint strategies
         no longer produces any changes, or False if the puzzle is unsolvable 
     """
-    raise NotImplementedError
+    stalled = False
+    while (not stalled):
+        solved_box_before = len([k for k, v in values.items() if len(v) == 1])
+        # print('before', solved_box_before)
+
+        values = eliminate(values)
+        values = only_choice(values)
+        values = naked_twins(values)
+        
+        solved_box_after = len([k for k, v in values.items() if len(v) == 1])
+        # print('after', solved_box_after)
+        
+        stalled = solved_box_before == solved_box_after
+
+        if len([k for k, v in values.items() if len(v) == 0]) > 0:
+            return False
+
+    return values
 
 
 def search(values):
@@ -134,8 +165,22 @@ def search(values):
     You should be able to complete this function by copying your code from the classroom
     and extending it to call the naked twins strategy.
     """
-    raise NotImplementedError
+    values = reduce_puzzle(values)
+    if values is False:
+        return False
 
+    unsolved_boxes = [(len(v), k) for k, v in values.items() if len(v) > 1]
+    if len(unsolved_boxes) == 0:
+        return values
+    
+    _, key = min(unsolved_boxes)
+    for d in values[key]:
+        values_copy = values.copy()
+        values_copy[key] = d
+        return_val = search(values_copy)
+        if return_val:
+            return return_val
+    return False
 
 def solve(grid):
     """Find the solution to a Sudoku puzzle using search and constraint propagation
