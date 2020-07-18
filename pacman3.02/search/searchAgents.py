@@ -288,6 +288,43 @@ class CornersProblem(search.SearchProblem):
         # Please add any code here which you would like to use
         # in initializing the problem
         "*** YOUR CODE HERE ***"
+        self.distFromCorners = {} # Distance from corner to other cell
+
+        dx = [0, 1, 0, -1]
+        dy = [1, 0, -1, 0]
+        for corner in self.corners:
+            q = util.Queue()
+            q.push(corner)
+            self.distFromCorners[(corner, corner)] = 0
+            while not q.isEmpty():
+                cur = q.pop()
+                x, y = cur
+                for i in range(4):
+                    nx = x + dx[i]
+                    ny = y + dy[i]
+                    # check if next cell is visited or not
+                    if tuple([corner, (nx, ny)]) in self.distFromCorners:
+                        continue
+                    # check if next cell is out of bound or is a wall
+                    if nx < 1 or ny < 1 or nx > right or ny > top or self.walls[nx][ny]:
+                        continue 
+                    self.distFromCorners[(corner, (nx, ny))] = self.distFromCorners[(corner, cur)] + 1
+                    q.push((nx, ny))
+
+        # numDots = sum(1 for r in self.walls for c in r if c == False)
+        
+        # for r in self.walls:
+        #     for c in r:
+        #         if c:
+        #             print('1 ', end='')
+        #         else:
+        #             print('0 ', end='')
+        #     print()
+        
+        # print(len(self.distFromCorners), numDots)
+        # for k, v in self.distFromCorners.items():
+        #     print(k, v)
+        # assert(len(self.distFromCorners) == numDots * 4)
 
         self.remainingCorners = ((1,1), (1,top), (right, 1), (right, top))
 
@@ -352,6 +389,7 @@ class CornersProblem(search.SearchProblem):
             if self.walls[x][y]: return 999999
         return len(actions)
 
+import itertools
 
 def cornersHeuristic(state, problem):
     """
@@ -366,12 +404,18 @@ def cornersHeuristic(state, problem):
     shortest path from the state to a goal of the problem; i.e.  it should be
     admissible (as well as consistent).
     """
-    # corners = problem.corners # These are the corner coordinates
-    # walls = problem.walls # These are the walls of the maze, as a Grid (game.py)
     "*** YOUR CODE HERE ***"
-
     currentPosition, remainingCorners = state
-    return sum(util.manhattanDistance(corner, currentPosition) for corner in remainingCorners)
+    if len(remainingCorners) == 0:
+        return 0
+
+    bestCost = 999999
+    for path in list(itertools.permutations(remainingCorners)):
+        cost = problem.distFromCorners[(path[0], currentPosition)]
+        for i in range(1, len(path)):
+            cost += problem.distFromCorners[(path[i], path[i-1])]
+        bestCost = min(bestCost, cost)
+    return bestCost
 
 class AStarCornersAgent(SearchAgent):
     "A SearchAgent for FoodSearchProblem using A* and your foodHeuristic"
