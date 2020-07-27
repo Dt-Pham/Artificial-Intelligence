@@ -479,6 +479,8 @@ class AStarFoodSearchAgent(SearchAgent):
         self.searchFunction = lambda prob: search.aStarSearch(prob, foodHeuristic)
         self.searchType = FoodSearchProblem
 
+import numpy as np
+
 def foodHeuristic(state, problem):
     """
     Your heuristic for the FoodSearchProblem goes here.
@@ -509,7 +511,22 @@ def foodHeuristic(state, problem):
     """
     position, foodGrid = state
     "*** YOUR CODE HERE ***"
-    return 0
+    def dist(p1, p2):
+        if (p1, p2) in problem.heuristicInfo:
+            return problem.heuristicInfo[(p1, p2)]
+        problem.heuristicInfo[(p1, p2)] = mazeDistance(p1, p2, problem.startingGameState)
+        problem.heuristicInfo[(p2, p1)] = problem.heuristicInfo[(p1, p2)]
+        return problem.heuristicInfo[(p1, p2)]
+
+    foodPositions = foodGrid.asList()
+    if len(foodPositions) == 0:
+        return 0
+    if len(foodPositions) == 1:
+        return dist(position, foodPositions[0])
+
+    p1 = np.argmax([dist(position, fpos) for fpos in foodPositions])
+    p2 = np.argmax([dist(foodPositions[p1], fpos) for fpos in foodPositions])
+    return min(dist(position, foodPositions[p1]), dist(position, foodPositions[p2])) + dist(foodPositions[p1], foodPositions[p2])
 
 class ClosestDotSearchAgent(SearchAgent):
     "Search for all food using a sequence of searches"
@@ -540,6 +557,7 @@ class ClosestDotSearchAgent(SearchAgent):
         problem = AnyFoodSearchProblem(gameState)
 
         "*** YOUR CODE HERE ***"
+        mazeDistance(startPosition, )
         util.raiseNotDefined()
 
 class AnyFoodSearchProblem(PositionSearchProblem):
@@ -590,8 +608,4 @@ def mazeDistance(point1, point2, gameState):
     """
     x1, y1 = point1
     x2, y2 = point2
-    walls = gameState.getWalls()
-    assert not walls[x1][y1], 'point1 is a wall: ' + str(point1)
-    assert not walls[x2][y2], 'point2 is a wall: ' + str(point2)
-    prob = PositionSearchProblem(gameState, start=point1, goal=point2, warn=False, visualize=False)
-    return len(search.bfs(prob))
+     
