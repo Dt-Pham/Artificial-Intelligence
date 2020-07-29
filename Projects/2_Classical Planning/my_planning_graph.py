@@ -20,8 +20,10 @@ class ActionLayer(BaseActionLayer):
         layers.ActionNode
         """
         # TODO: implement this function
-        raise NotImplementedError
-
+        for effect in self.children[actionA]:
+            if ~effect in self.children[actionB]:
+                return True
+        return False
 
     def _interference(self, actionA, actionB):
         """ Return True if the effects of either action negate the preconditions of the other 
@@ -35,7 +37,15 @@ class ActionLayer(BaseActionLayer):
         layers.ActionNode
         """
         # TODO: implement this function
-        raise NotImplementedError
+        for effect in self.children[actionA]:
+            if ~effect in self.parents[actionB]:
+                return True
+
+        for effect in self.children[actionB]:
+            if ~effect in self.parents[actionA]:
+                return True
+
+        return False
 
     def _competing_needs(self, actionA, actionB):
         """ Return True if any preconditions of the two actions are pairwise mutex in the parent layer
@@ -50,7 +60,11 @@ class ActionLayer(BaseActionLayer):
         layers.BaseLayer.parent_layer
         """
         # TODO: implement this function
-        raise NotImplementedError
+        for preA in self.parents[actionA]:
+            for preB in self.parents[actionB]:
+                if self.parent_layer.is_mutex(preA, preB):
+                    return True
+        return False
 
 
 class LiteralLayer(BaseLiteralLayer):
@@ -67,12 +81,16 @@ class LiteralLayer(BaseLiteralLayer):
         layers.BaseLayer.parent_layer
         """
         # TODO: implement this function
-        raise NotImplementedError
+        for actA in self.parents[literalA]:
+            for actB in self.parents[literalB]:
+                if not self.parent_layer.is_mutex(actA, actB):
+                    return False
+        return True
 
     def _negation(self, literalA, literalB):
         """ Return True if two literals are negations of each other """
         # TODO: implement this function
-        raise NotImplementedError
+        return literalA == ~literalB
 
 
 class PlanningGraph:
@@ -136,7 +154,21 @@ class PlanningGraph:
         Russell-Norvig 10.3.1 (3rd Edition)
         """
         # TODO: implement this function
-        raise NotImplementedError
+        goal_literals = self.goal
+        sum = 0
+        del_key = set()
+        current_layer = 0
+        while len(goal_literals) > 0:
+            del_key.clear()
+            for literal in goal_literals:
+                if literal in self.literal_layers[current_layer]:
+                    del_key.add(literal)
+                    sum += current_layer
+            goal_literals = goal_literals - del_key
+            if len(goal_literals) > 0:
+                current_layer += 1
+                self.fill(1)
+        return sum
 
     def h_maxlevel(self):
         """ Calculate the max level heuristic for the planning graph
@@ -166,7 +198,20 @@ class PlanningGraph:
         WARNING: you should expect long runtimes using this heuristic with A*
         """
         # TODO: implement maxlevel heuristic
-        raise NotImplementedError
+        goal_literals = self.goal
+        del_key = set()
+        current_layer = 0
+        while len(goal_literals) > 0:
+            del_key.clear()
+            for literal in goal_literals:
+                if literal in self.literal_layers[current_layer]:
+                    del_key.add(literal)
+            goal_literals = goal_literals - del_key
+
+            if len(goal_literals) > 0:
+                current_layer += 1
+                self.fill(1)
+        return current_layer
 
     def h_setlevel(self):
         """ Calculate the set level heuristic for the planning graph
@@ -191,7 +236,34 @@ class PlanningGraph:
         WARNING: you should expect long runtimes using this heuristic on complex problems
         """
         # TODO: implement setlevel heuristic
-        raise NotImplementedError
+        goal_literals = self.goal
+        del_key = set()
+        current_layer = -1
+        while True:
+            current_layer += 1
+            if current_layer > 0:
+                self.fill(1)
+
+            del_key.clear()
+            for literal in goal_literals:
+                if literal in self.literal_layers[current_layer]:
+                    del_key.add(literal)
+            goal_literals = goal_literals - del_key
+
+            if len(goal_literals) > 0:
+                continue
+            
+            noMutex = True
+            for A, B in combinations(iter(self.goal), 2):
+                if (self.literal_layers[current_layer].is_mutex(A, B)):
+                    noMutex = False
+                    break
+            if noMutex:
+                return current_layer
+            if self._is_leveled:
+                break
+
+        return current_layer
 
     ##############################################################################
     #                     DO NOT MODIFY CODE BELOW THIS LINE                     #
